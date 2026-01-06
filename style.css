@@ -62,7 +62,7 @@ body {
 
 /* Right logo */
 .logo-right {
-  height: 100px; width: auto;
+  height: 40px; width: auto;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -81,11 +81,7 @@ body {
         opacity: 1;
     }
   }
-#logo1-img {
-  height: 30px;
-  width: auto;
-  border-radius: 6px;
-}
+
 
 
 .header-spacer { flex: 0 0 auto; width: auto;  }
@@ -309,7 +305,7 @@ body {
     text-overflow: ellipsis;
   }
   #logo1-img {
-    height: 24px;        /* smaller on mobile */
+    height: 34px;        /* smaller on mobile */
   }
 
 
