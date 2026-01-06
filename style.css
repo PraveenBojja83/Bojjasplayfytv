@@ -316,7 +316,7 @@ body {
     padding: 6px 10px;
     gap: 6px;
   }
-  .tv-buttons { flex: 0 0 200px; gap: 4px; }
+  .tv-buttons { flex: 0 0 100px; gap: 4px; }
   .tv-btn { padding: 6px 4px; font-size: 12px; }
   #load-btn { padding: 6px 6px; font-size: 10px; }
   #status {
