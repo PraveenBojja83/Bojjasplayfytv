@@ -62,6 +62,7 @@ body {
 
 /* Right logo */
 .logo-right {
+  margin-top: 100px;
   height: 40px; width: auto;
   flex: 0 0 auto;
   display: flex;
