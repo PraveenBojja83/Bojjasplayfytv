@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bojja's Playfy M3U IPTV Player</title>
+  <link rel="icon" type="image/png" href="logo3-rbg.png"/>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- TOP HEADER BAR -->
+  <header id="app-header">
+    <div class="logo">
+      <img src="logo2-rbg.png" alt="M3U Player Logo" id="logo-img">
+    </div>
+    <div class="app-name">Bojja's Playfy TV Telugu</div>
+    <div class="header-spacer"></div>
+    <div class="logo-right">
+      <img src="tv-icon-logo.png" alt="M3U Player Logo" id="logo1-img">
+    </div>
+  </header>
+
+  <!-- NAV BAR FOR TV LINKS + CATEGORIES -->
+  <nav id="tv-nav">
+    <div class="tv-buttons">
+      <button class="tv-btn active" data-tv="0">TV Telugu</button>
+    </div>
+    <button id="load-btn">Reload</button>
+    <div id="status"></div>
+  </nav>
+
+  <!-- CATEGORY BAR -->
+  <div id="category-bar">
+    <button class="cat-btn active" data-cat="all">All</button>
+    <button class="cat-btn" data-cat="Animation">Animation</button>
+    <button class="cat-btn" data-cat="Kids">Kids</button>
+    <button class="cat-btn" data-cat="Entertainment">Entertainment</button>
+    <button class="cat-btn" data-cat="Lifestyle">Lifestyle</button>
+    <button class="cat-btn" data-cat="Sports">Sports</button>
+    <button class="cat-btn" data-cat="Movies">Movies</button>
+    <button class="cat-btn" data-cat="News">News</button>
+    <button class="cat-btn" data-cat="Religious">Religious</button>
+    <button class="cat-btn" data-cat="Music">Music</button>
+  </div>
+
+  <!-- Main Content Area (Video + overlay channels) -->
+  <main id="main">
+    <div id="video-wrapper">
+      <video id="video" controls></video>
+
+      <!-- Transparent channel bar over video -->
+      <div id="channel-bar">
+        <div id="channel-info">Select a category & channel</div>
+        <div id="channels"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const loadBtn = document.getElementById('load-btn');
+    const statusEl = document.getElementById('status');
+    const channelsEl = document.getElementById('channels');
+    const videoEl = document.getElementById('video');
+    const channelInfoEl = document.getElementById('channel-info');
+    const tvButtons = document.querySelectorAll('.tv-btn');
+    const catButtons = document.querySelectorAll('.cat-btn');
+
+    const PLAYLISTS = [
+      {
+        name: 'India TV 1',
+        url: 'https://iptv-org.github.io/iptv/languages/tel.m3u'
+      }
+    ];
+
+    let currentTvIndex = 0;
+    let currentCategory = 'all';
+    let hls;
+    let allChannels = []; // Raw channels from playlist
+
+    // Parse M3U playlist
+    function parseM3U(m3uText) {
+      const lines = m3uText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const result = [];
+      let currentInfo = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith('#EXTINF')) {
+          currentInfo = { name: 'Unknown', url: '', group: '' };
+          const commaIndex = line.indexOf(',');
+          if (commaIndex !== -1 && commaIndex < line.length - 1) {
+            currentInfo.name = line.substring(commaIndex + 1).trim();
+          }
+          const groupMatch = line.match(/group-title="([^"]*)"/i);
+          if (groupMatch) currentInfo.group = groupMatch[1];
+        } else if (!line.startsWith('#') && currentInfo) {
+          currentInfo.url = line;
+          result.push(currentInfo);
+          currentInfo = null;
+        }
+      }
+      return result;
+    }
+
+    // Filter channels by current category
+    function getFilteredChannels() {
+      if (currentCategory === 'all') return allChannels;
+      return allChannels.filter(ch => 
+        ch.group.toLowerCase().includes(currentCategory.toLowerCase()) ||
+        ch.name.toLowerCase().includes(currentCategory.toLowerCase())
+      );
+    }
+
+    // Render filtered channels
+    function renderChannels() {
+      const filtered = getFilteredChannels();
+      channelsEl.innerHTML = '';
+      if (!filtered.length) {
+        channelsEl.innerHTML = '<div class="no-channels">No channels in this category</div>';
+        return;
+      }
+
+      filtered.forEach((ch, index) => {
+        const div = document.createElement('div');
+        div.className = 'channel';
+        div.dataset.index = allChannels.indexOf(ch); // Use original index
+        div.textContent = `${ch.name} [${ch.group}]`;
+        div.title = ch.name; // Full name on hover
+        div.addEventListener('click', (e) => playChannel(parseInt(div.dataset.index), e));
+        channelsEl.appendChild(div);
+      });
+    }
+
+    // Play selected channel
+    function playChannel(index, event) {
+      const ch = allChannels[index];
+      if (!ch) return;
+
+      document.querySelectorAll('.channel').forEach(el => el.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      channelInfoEl.textContent = `${ch.name} [${ch.group}]`;
+      const src = ch.url;
+
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(videoEl);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          videoEl.play().catch(() => {});
+        });
+        // Error handling
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            console.error('HLS Error:', data);
+            videoEl.src = src;
+            videoEl.play().catch(e => console.error('Fallback failed:', e));
+          }
+        });
+      } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+        videoEl.src = src;
+        videoEl.addEventListener('loadedmetadata', () => {
+          videoEl.play().catch(() => {});
+        });
+      } else {
+        videoEl.src = src;
+        videoEl.play().catch(() => {});
+      }
+    }
+
+    // Load playlist for current TV
+    async function loadPlaylist() {
+      const playlist = PLAYLISTS[currentTvIndex];
+      if (!playlist) {
+        statusEl.textContent = 'Invalid TV selection';
+        statusEl.className = 'status error';
+        return;
+      }
+
+      let fetchUrl = playlist.url;
+      if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        fetchUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(playlist.url);
+      }
+
+      statusEl.textContent = `Loading ${playlist.name}...`;
+      statusEl.className = 'status loading';
+      channelsEl.innerHTML = '<div class="no-channels">Loading channels...</div>';
+
+      try {
+        const res = await fetch(fetchUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        allChannels = parseM3U(text);
+        renderChannels();
+        statusEl.textContent = `Loaded ${allChannels.length} channels from "${playlist.name}"`;
+        statusEl.className = 'status success';
+
+        // Auto-play first filtered channel
+        const firstChannelDiv = channelsEl.querySelector('.channel');
+        if (firstChannelDiv) {
+          firstChannelDiv.click();
+        } else {
+          channelInfoEl.textContent = 'No channels in this category';
+        }
+      } catch (err) {
+        console.error('Load error:', err);
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.className = 'status error';
+        channelsEl.innerHTML = '<div class="no-channels">Failed to load channels</div>';
+      }
+    }
+
+    // TV button handlers
+    tvButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tvButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTvIndex = parseInt(btn.dataset.tv, 10) || 0;
+        loadPlaylist();
+      });
+    });
+
+    // Category button handlers
+    catButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        catButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCategory = btn.dataset.cat;
+        renderChannels();
+      });
+    });
+
+    // Reload button
+    loadBtn.addEventListener('click', loadPlaylist);
+
+    // Auto-load TV1
+    window.addEventListener('load', loadPlaylist);
+  </script>
+</body>
+</html>
