@@ -1,6 +1,6 @@
 {
   "name": "Bojja's Playfy M3U IPTV Player",
-  "short_name": "Playfy TV",
+  "short_name": "Bojja's Playfy TV",
   "description": "Telugu IPTV M3U Player",
   "start_url": "/",
   "display": "standalone",
@@ -13,7 +13,7 @@
       "type": "image/png"
     },
     {
-      "src": "tv-icon-logo.png",
+      "src": "logo3-removebg-preview.png",
       "sizes": "512x512",
       "type": "image/png"
     }
