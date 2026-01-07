@@ -174,7 +174,7 @@
       }
     }
 
-    // Load playlist for current TV - FIXED HTTP 408
+    // Load playlist for current TV
     async function loadPlaylist() {
       const playlist = PLAYLISTS[currentTvIndex];
       if (!playlist) {
@@ -183,13 +183,9 @@
         return;
       }
 
-      const controller = new AbortController(); // Timeout control
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
       let fetchUrl = playlist.url;
-      // Use reliable thingproxy for production (fixes allorigins 408 timeouts)
       if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        fetchUrl = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(playlist.url)}`;
+        fetchUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(playlist.url);
       }
 
       statusEl.textContent = `Loading ${playlist.name}...`;
@@ -197,10 +193,7 @@
       channelsEl.innerHTML = '<div class="no-channels">Loading channels...</div>';
 
       try {
-        const res = await fetch(fetchUrl, { 
-          signal: controller.signal 
-        });
-        clearTimeout(timeoutId);
+        const res = await fetch(fetchUrl);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
         allChannels = parseM3U(text);
@@ -216,14 +209,10 @@
           channelInfoEl.textContent = 'No channels in this category';
         }
       } catch (err) {
-        clearTimeout(timeoutId);
         console.error('Load error:', err);
-        let msg = 'Error: ';
-        if (err.name === 'AbortError') msg += 'Request timeout - slow connection';
-        else msg += err.message;
-        statusEl.textContent = msg;
+        statusEl.textContent = 'Error: ' + err.message;
         statusEl.className = 'status error';
-        channelsEl.innerHTML = '<div class="no-channels">Failed to load channels. Try Reload.</div>';
+        channelsEl.innerHTML = '<div class="no-channels">Failed to load channels</div>';
       }
     }
 
