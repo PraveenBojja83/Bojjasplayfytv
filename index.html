@@ -78,6 +78,11 @@
     let hls;
     let allChannels = []; // Raw channels from playlist
 
+    // Storage keys
+    const STORAGE_KEY = 'playfy_channels';
+    const STORAGE_TIMESTAMP_KEY = 'playfy_channels_timestamp';
+    const CACHE_DAYS = 7; // Refresh cache after 7 days
+
     // Parse M3U playlist
     function parseM3U(m3uText) {
       const lines = m3uText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -101,6 +106,36 @@
         }
       }
       return result;
+    }
+
+    // Save channels to localStorage
+    function saveChannelsToStorage(channels, playlistUrl) {
+      const data = {
+        channels: channels,
+        playlistUrl: playlistUrl,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
+    }
+
+    // Load channels from localStorage
+    function loadChannelsFromStorage(playlistUrl) {
+      try {
+        const dataStr = localStorage.getItem(STORAGE_KEY);
+        if (!dataStr) return null;
+
+        const data = JSON.parse(dataStr);
+        const timestamp = parseInt(localStorage.getItem(STORAGE_TIMESTAMP_KEY) || '0');
+
+        // Check if cache is still valid (within 7 days) and matches playlist
+        if (data.playlistUrl === playlistUrl && (Date.now() - timestamp) < (CACHE_DAYS * 24 * 60 * 60 * 1000)) {
+          return data.channels;
+        }
+      } catch (e) {
+        console.error('Error loading cached channels:', e);
+      }
+      return null;
     }
 
     // Filter channels by current category
@@ -183,6 +218,24 @@
         return;
       }
 
+      // First, try to load from cache
+      const cachedChannels = loadChannelsFromStorage(playlist.url);
+      if (cachedChannels) {
+        allChannels = cachedChannels;
+        renderChannels();
+        statusEl.textContent = `Loaded ${allChannels.length} cached channels from "${playlist.name}"`;
+        statusEl.className = 'status success';
+
+        // Auto-play first filtered channel
+        const firstChannelDiv = channelsEl.querySelector('.channel');
+        if (firstChannelDiv) {
+          firstChannelDiv.click();
+        } else {
+          channelInfoEl.textContent = 'No channels in this category';
+        }
+        return;
+      }
+
       let fetchUrl = playlist.url;
       if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         fetchUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(playlist.url);
@@ -197,8 +250,12 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
         allChannels = parseM3U(text);
+        
+        // Save to localStorage after successful load
+        saveChannelsToStorage(allChannels, playlist.url);
+        
         renderChannels();
-        statusEl.textContent = `Loaded ${allChannels.length} channels from "${playlist.name}"`;
+        statusEl.textContent = `Loaded ${allChannels.length} channels from "${playlist.name}" (cached)`;
         statusEl.className = 'status success';
 
         // Auto-play first filtered channel
