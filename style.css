@@ -306,8 +306,12 @@ body {
     text-overflow: ellipsis;
   }
   #logo1-img {
-    height: 34px;        /* smaller on mobile */
-  }
+    height: 34px;           /* smaller on mobile */
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;           /* ensures it stays on top */
+}
 
 
   /* TV Nav - Compact */
